@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/babenow/tokens"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 type jwt_claims struct {

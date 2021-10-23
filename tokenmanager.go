@@ -14,7 +14,7 @@ type TokenPair struct {
 }
 
 type TokenManager interface {
-	GenerateTokenPair(username string)
+	GenerateTokenPair(username string) (*TokenPair, error)
 	GenerateAccessToken(username string) (string, error)
 	GenerateRefreshToken(username string) (string, error)
 	Parse(tokenString string) (string, error)

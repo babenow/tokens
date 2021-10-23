@@ -17,4 +17,5 @@ type TokenManager interface {
 	GenerateTokenPair(username string)
 	GenerateAccessToken(username string) (string, error)
 	GenerateRefreshToken(username string) (string, error)
+	Parse(tokenString string) (string, error)
 }

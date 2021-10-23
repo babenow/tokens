@@ -8,7 +8,7 @@ import (
 )
 
 type jwt_claims struct {
-	username string
+	Username string `json:"username"`
 	jwt.StandardClaims
 }
 
@@ -27,10 +27,6 @@ func NewJWTTokenManager(config *tokens.TMConfig) *JWTTokenManager {
 }
 
 func (m *JWTTokenManager) GenerateTokenPair(username string) (*tokens.TokenPair, error) {
-	if username == "" {
-		return nil, tokens.ErrorEmptyUsername
-	}
-
 	at, err := m.GenerateAccessToken(username)
 	if err != nil {
 		return nil, tokens.ErrorGenerateToken(err)
@@ -46,10 +42,16 @@ func (m *JWTTokenManager) GenerateTokenPair(username string) (*tokens.TokenPair,
 }
 
 func (m *JWTTokenManager) GenerateAccessToken(username string) (string, error) {
+	if username == "" {
+		return "", tokens.ErrorEmptyUsername
+	}
 	return m.generateToken(username, m.accessTime)
 }
 
 func (m *JWTTokenManager) GenerateRefreshToken(username string) (string, error) {
+	if username == "" {
+		return "", tokens.ErrorEmptyUsername
+	}
 	return m.generateToken(username, m.refreshTime)
 }
 
@@ -58,7 +60,7 @@ func (m *JWTTokenManager) generateToken(username string, expired time.Duration) 
 		username,
 		jwt.StandardClaims{
 			ExpiresAt: int64(expired),
-			Issuer:    "jwt_manager",
+			Issuer:    username,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -69,4 +71,18 @@ func (m *JWTTokenManager) generateToken(username string, expired time.Duration) 
 	}
 
 	return t, nil
+}
+
+func (m *JWTTokenManager) Parse(tokenString string) (username string, err error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt_claims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(m.secret), nil
+	})
+	if err != nil {
+		return "", tokens.ErrorParseToken(err)
+	}
+	if claims, ok := token.Claims.(*jwt_claims); ok && token.Valid {
+		return claims.Username, nil
+	} else {
+		return "", tokens.ErrorParseToken(tokens.ErrorInvalidToken)
+	}
 }

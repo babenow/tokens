@@ -7,6 +7,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+type jwt_claims struct {
+	username string
+	jwt.StandardClaims
+}
+
 type JWTTokenManager struct {
 	secret      string
 	accessTime  time.Duration
@@ -15,8 +20,29 @@ type JWTTokenManager struct {
 
 func NewJWTTokenManager(config *tokens.TMConfig) *JWTTokenManager {
 	return &JWTTokenManager{
-		secret: config.Secret,
+		secret:      config.Secret,
+		accessTime:  config.AccessTokenExpired,
+		refreshTime: config.RefreshTokenExpired,
 	}
+}
+
+func (m *JWTTokenManager) GenerateTokenPair(username string) (*tokens.TokenPair, error) {
+	if username == "" {
+		return nil, tokens.ErrorEmptyUsername
+	}
+
+	at, err := m.GenerateAccessToken(username)
+	if err != nil {
+		return nil, tokens.ErrorGenerateToken(err)
+	}
+	rt, err := m.GenerateRefreshToken(username)
+	if err != nil {
+		return nil, tokens.ErrorGenerateToken(err)
+	}
+	return &tokens.TokenPair{
+		AccessToken:  at,
+		RefreshToken: rt,
+	}, nil
 }
 
 func (m *JWTTokenManager) GenerateAccessToken(username string) (string, error) {
@@ -28,11 +54,14 @@ func (m *JWTTokenManager) GenerateRefreshToken(username string) (string, error) 
 }
 
 func (m *JWTTokenManager) generateToken(username string, expired time.Duration) (string, error) {
-	token := jwt.New(jwt.SigningMethodES256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["sub"] = 1
-	claims["username"] = username
-	claims["exp"] = time.Now().Add(m.accessTime).Unix()
+	claims := &jwt_claims{
+		username,
+		jwt.StandardClaims{
+			ExpiresAt: int64(expired),
+			Issuer:    "jwt_manager",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	t, err := token.SignedString([]byte(m.secret))
 	if err != nil {
